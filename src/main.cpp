@@ -253,16 +253,21 @@ int main(int argc, char *argv[])
 
 	
 	//remesh.para.clean_flag = false;
-	remesh.para.target_length_ratio = 0.5;
+	remesh.para.target_length_ratio = 0.4;
+	remesh.para.min_target_length = 0.006;
+	remesh.para.max_target_length = 0.010;
+	remesh.para.max_SurfDist = 0.002;
+	//remesh.para.smooth_ratio = 1;
 	//remesh.para.split_flag = false;
 	//remesh.para.collapse_flag = false;
 	//remesh.para.flip_flag = false;
 	//remesh.para.smooth_flag = false;
 	//remesh.para.project_flag = false;
+	//remesh.para.check_Surf_Dist = true;
 	
 	remesh.para.adapt_flag = true;
-	remesh.para.angle_Threshold = 30;
-	remesh.para.tolerance = 0.05;
+	remesh.para.angle_Threshold = 34;
+	remesh.para.tolerance = 0.002;
 	
 
 	//isotropic remeshing
