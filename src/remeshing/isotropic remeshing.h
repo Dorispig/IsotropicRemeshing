@@ -15,7 +15,9 @@ private:
 		bool corner = false;
 		bool boundary = false;
 		double target_length;
+		bool has_normal_ = false;
 		Mesh::Normal normal;
+		bool has_normal() { return has_normal_; }
 	};
 	OpenMesh::VPropHandleT<V_property> V_prop;
 
@@ -25,7 +27,9 @@ private:
 		double target_length;
 		double min_target_length;
 		double max_target_length;
+		bool has_normal_ = false;
 		Mesh::Normal normal;
+		bool has_normal() { return has_normal_; }
 	};
 	OpenMesh::HPropHandleT<H_property> H_prop;
 
@@ -35,13 +39,17 @@ private:
 		double target_length;
 		double min_target_length;
 		double max_target_length;
+		bool has_normal_ = false;
 		Mesh::Normal normal;
+		bool has_normal() { return has_normal_; }
 	};
 	OpenMesh::EPropHandleT<E_property> E_prop;
 
 	struct F_property {
 		bool boundary = false;
+		bool has_normal_ = false;
 		Mesh::Normal normal;
+		bool has_normal() { return has_normal_; }
 	};
 	OpenMesh::FPropHandleT<F_property> F_prop;
 
@@ -218,7 +226,7 @@ public:
 	void update_vertices_normal();
 	void update_normals();
 
-
+	bool is_feature_edge(Mesh::HalfedgeHandle heh, const double _feature_angle);//和openmesh的不一样（结果不一样）
 	void update_edge_feature(Mesh::EdgeHandle eh);
 	void update_edges_feature();
 	void update_vertice_feature(Mesh::VertexHandle vh);
@@ -277,9 +285,7 @@ public:
 	bool check_angle(Mesh::EdgeHandle eh);
 
 	bool check_Hausdorff(vector<Mesh::Point> points,double max_SurfDist);
-	//TODO
 	bool check_collapse_ok(Mesh::HalfedgeHandle heh);
-
 	bool check_collapse_legal_feature(Mesh::HalfedgeHandle heh);//Legitimacy of features
 	//Collapsing along one feature edge cannot affect another feature edge
 	bool check_collapse_CanMove(Mesh::HalfedgeHandle heh);

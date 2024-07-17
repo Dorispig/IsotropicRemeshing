@@ -215,7 +215,7 @@ void IsotropicRemeshing::bug_test() {
 			num_2edge += mesh.property(v_feature_edge_num, vh);
 			//num_2edge += k;
 			//auto dd = mesh.property(v_feature_edge_num);
-			//dd[vh.idx()];
+			//int t = dd[vh.idx()];
 
 		}
 	}
@@ -859,27 +859,95 @@ void IsotropicRemeshing::project_to_surface() {
 
 void IsotropicRemeshing::update_bound() {
 	for (Mesh::VertexIter v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it) {
-		mesh.property(v_is_boundary, *v_it) = mesh.is_boundary(*v_it);
+		//mesh.property(v_is_boundary, *v_it) = mesh.is_boundary(*v_it);
+		para.v_prop[(*v_it).idx()].boundary = mesh.is_boundary(*v_it);
 	}
 	for (Mesh::EdgeIter e_it = mesh.edges_begin(); e_it != mesh.edges_end(); ++e_it) {
-		mesh.property(e_is_boundary, *e_it) = mesh.is_boundary(*e_it);
+		//mesh.property(e_is_boundary, *e_it) = mesh.is_boundary(*e_it);
+		para.e_prop[(*e_it).idx()].boundary = mesh.is_boundary(*e_it);
 		Mesh::HalfedgeHandle heh0 = mesh.halfedge_handle(*e_it, 0);
-		mesh.property(he_is_boundary, heh0) = mesh.is_boundary(heh0);
+		//mesh.property(he_is_boundary, heh0) = mesh.is_boundary(heh0);
+		para.he_prop[heh0.idx()].boundary = mesh.is_boundary(heh0);
 		Mesh::HalfedgeHandle heh1 = mesh.halfedge_handle(*e_it, 1);
-		mesh.property(he_is_boundary, heh1) = mesh.is_boundary(heh1);
+		//mesh.property(he_is_boundary, heh1) = mesh.is_boundary(heh1);
+		para.he_prop[heh1.idx()].boundary = mesh.is_boundary(heh1);
 	}
 	for (Mesh::FaceIter f_it = mesh.faces_begin(); f_it != mesh.faces_end(); ++f_it) {
-		mesh.property(f_is_boundary, *f_it) = mesh.is_boundary(*f_it);
+		//mesh.property(f_is_boundary, *f_it) = mesh.is_boundary(*f_it);
+		para.f_prop[(*f_it).idx()].boundary = mesh.is_boundary(*f_it);
 	}
+}
+//normal
+void IsotropicRemeshing::update_face_normal(Mesh::FaceHandle fh) {
+	para.f_prop[fh.idx()].normal = cal_3p_face_normal(fh);
+	para.f_prop[fh.idx()].has_normal_ = true;
+}
+void IsotropicRemeshing::update_faces_normal() {
+	for (Mesh::FaceIter f_it = mesh.faces_begin(); f_it != mesh.faces_end(); f_it++) {
+		update_face_normal(*f_it);
+	}
+}
+void IsotropicRemeshing::update_vertice_normal(Mesh::VertexHandle vh) {
+	Mesh::Normal n = { 0,0,0 };
+	int num = 0;
+	for (Mesh::VertexFaceIter vf_it = mesh.vf_begin(vh); vf_it != mesh.vf_end(vh); vf_it++) {
+		n += cal_3p_face_normal(*vf_it);
+		num++;
+	}
+	double d = norm(n);
+	para.v_prop[vh.idx()].normal = d == 0 ? n : n / d;
+	para.v_prop[vh.idx()].has_normal_ = true;
+}
+void IsotropicRemeshing::update_vertices_normal() {
+	for (Mesh::VertexIter v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); v_it++) {
+		update_vertice_normal(*v_it);
+	}
+}
+void IsotropicRemeshing::update_normals() {
+	update_faces_normal();
+	update_vertices_normal();
+}
+
+bool IsotropicRemeshing::is_feature_edge(Mesh::HalfedgeHandle heh, const double feature_angle) {
+	Mesh::EdgeHandle eh = mesh.edge_handle(heh);
+
+	/*if (mesh.has_edge_status())
+	{
+		if (mesh.status(eh).feature())
+			return true;
+	}*/
+	if (para.e_prop[eh.idx()].feature)
+		return true;
+
+	/*if (mesh.is_boundary(eh))
+		return false;*/
+	if (para.e_prop[eh.idx()].boundary)
+		return false;
+
+	// compute angle between faces
+	Mesh::FaceHandle fh0 = mesh.face_handle(heh);
+	Mesh::FaceHandle fh1 = mesh.face_handle(mesh.opposite_halfedge_handle(heh));
+
+	//Mesh::Normal fn0 = mesh.has_face_normals() ? mesh.normal(fh0) : mesh.calc_face_normal(fh0);
+	//Mesh::Normal fn1 = mesh.has_face_normals() ? mesh.normal(fh1) : mesh.calc_face_normal(fh1);
+
+	Mesh::Normal fn0 = para.f_prop[fh0.idx()].has_normal() ? para.f_prop[fh0.idx()].normal : cal_3p_face_normal(fh0);
+	Mesh::Normal fn1 = para.f_prop[fh1.idx()].has_normal() ? para.f_prop[fh1.idx()].normal : cal_3p_face_normal(fh1);
+	// dihedral angle above angle threshold
+	return (dot(fn0, fn1) < cos(feature_angle));
 }
 
 void IsotropicRemeshing::update_edge_feature(Mesh::EdgeHandle eh){
 	Mesh::HalfedgeHandle heh = mesh.halfedge_handle(eh);
 	Mesh::HalfedgeHandle heh_opp = mesh.opposite_halfedge_handle(heh);
-	bool f = mesh.is_estimated_feature_edge(heh, para.angle_Threshold_Rad);
+	//bool f = mesh.is_estimated_feature_edge(heh, para.angle_Threshold_Rad);
+	bool f = is_feature_edge(heh, para.angle_Threshold_Rad);
 	mesh.status(eh).set_feature(f);//&& length > 0
 	mesh.status(heh).set_feature(f);
 	mesh.status(heh_opp).set_feature(f);
+	//para.e_prop[eh.idx()].feature = f;
+	//para.he_prop[heh.idx()].feature = f;
+	//para.he_prop[heh_opp.idx()].feature = f;
 	if (f) {//&& length>0
 		Mesh::VertexHandle v0 = mesh.from_vertex_handle(heh);
 		Mesh::VertexHandle v1 = mesh.to_vertex_handle(heh);
@@ -954,7 +1022,7 @@ void IsotropicRemeshing::update_vertices_target_length() {
 		update_vertice_target_length(*v_it);
 	}
 	int iter = 0;
-	while(iter < 0){
+	while(para.adapt_flag&&iter < 1){
 		vector<double> v_tl;
 		for (Mesh::VertexIter v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it) {
 			Mesh::VertexHandle vh = *v_it;
